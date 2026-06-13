@@ -55,8 +55,7 @@ def _cmd_p(m, rest) -> int:
     proj = m.projects[name]
     path = resolve_path(proj.path, m.projects_base)
     glyph = m.focuses[proj.focus].glyph if proj.focus in m.focuses else ""
-    cmux.run(cmux.open_workspace_argv(title=name, cwd=str(path)))
-    cmux.run(cmux.rename_workspace_argv(glyphed_title(glyph, name)))
+    cmux.open_and_label(cwd=str(path), label=glyphed_title(glyph, name))
     return 0
 
 
@@ -65,7 +64,7 @@ def _cmd_open(m, rest) -> int:
         print("usage: pos open <path>", file=sys.stderr)
         return 1
     path = Path(rest[0]).expanduser()
-    cmux.run(cmux.open_workspace_argv(title=path.name, cwd=str(path)))
+    cmux.open_and_label(cwd=str(path), label=path.name)
     return 0
 
 
@@ -142,8 +141,7 @@ def _cmd_day(m, rest) -> int:
 
 def _cmd_focus(m, focus) -> int:
     fo = m.focuses[focus]
-    cmux.run(cmux.open_workspace_argv(title=focus, cwd=str(resolve_path(fo.home, m.projects_base))))
-    cmux.run(cmux.rename_workspace_argv(glyphed_title(fo.glyph, focus)))
+    cmux.open_and_label(cwd=str(resolve_path(fo.home, m.projects_base)), label=glyphed_title(fo.glyph, focus))
     return 0
 
 

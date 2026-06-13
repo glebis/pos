@@ -21,3 +21,24 @@ def test_sidecar_terminal_argv():
     argv = sidecar_argv(url=None)
     assert "new-pane" in argv
     assert "--type" in argv and "terminal" in argv
+
+
+from pos.cmux import parse_new_workspace_ref, rename_workspace_argv
+
+
+def test_parse_new_workspace_ref():
+    assert parse_new_workspace_ref("OK 8E8D4F0C-9434-4930-B873-8321197934BE") == "8E8D4F0C-9434-4930-B873-8321197934BE"
+    assert parse_new_workspace_ref("  OK abc \n") == "abc"
+    assert parse_new_workspace_ref("") is None
+    assert parse_new_workspace_ref("ERROR nope") is None
+
+
+def test_rename_argv_with_ref_targets_workspace():
+    argv = rename_workspace_argv("◆ business", ref="uuid-1")
+    assert "--workspace" in argv and "uuid-1" in argv
+    assert argv[-1] == "◆ business"
+
+
+def test_rename_argv_without_ref_omits_flag():
+    argv = rename_workspace_argv("x")
+    assert "--workspace" not in argv
