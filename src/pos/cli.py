@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import cmux, status, yard
+from . import cmux, day, status, yard
 from .label import glyphed_title
 from .manifest import focus_order, load_manifest, projects_by_focus
 from .paths import resolve_path
@@ -20,6 +20,8 @@ USAGE = """pos — focus-aligned terminal cockpit
   pos sidecar [url]       add a browser (url) or terminal sidecar to current workspace
   pos yard run <name> -- <cmd> | ls | attach <name> | kill <name>
   pos status [--json]     status across projects, grouped by focus
+  pos day [--date YYYYMMDD] [--dry-run]
+                          hybrid daily pin: focus contexts + today's active projects (from daily note)
 """
 
 
@@ -107,6 +109,37 @@ def _cmd_yard(m, rest) -> int:
     return 1
 
 
+def _cmd_day(m, rest) -> int:
+    from datetime import datetime
+
+    date_str = None
+    if "--date" in rest:
+        date_str = rest[rest.index("--date") + 1]
+    if date_str is None:
+        date_str = datetime.now().strftime("%Y%m%d")
+    dry = "--dry-run" in rest
+
+    daily_text = day.read_daily(date_str)
+    plan = day.build_pin_plan(m, daily_text)
+    # titles to pin: focus context names + active project names (glyph-stripped match)
+    wanted = set(plan["focuses"]) | set(plan["projects"])
+
+    print(f"pos day {date_str} — hybrid pin plan")
+    print(f"  focuses (spine): {', '.join(plan['focuses'])}")
+    print(f"  active projects: {', '.join(plan['projects']) or '(none found in daily note)'}")
+    if dry:
+        print("\n(dry-run; pass without --dry-run to pin)")
+        return 0
+    pinned = day._pin_workspace_by_title(wanted)
+    print(f"\n  pinned {len(pinned)} live workspace(s): {', '.join(pinned) or '(none matched open tabs)'}")
+    from .label import strip_glyph
+
+    missing = wanted - {strip_glyph(t) for t in pinned}
+    if missing:
+        print(f"  not open (open via `pos`): {', '.join(sorted(missing))}")
+    return 0
+
+
 def _cmd_focus(m, focus) -> int:
     fo = m.focuses[focus]
     cmux.run(cmux.open_workspace_argv(title=focus, cwd=str(resolve_path(fo.home, m.projects_base))))
@@ -139,6 +172,8 @@ def main(argv=None) -> int:
         return _cmd_sidecar(m, rest)
     if cmd == "yard":
         return _cmd_yard(m, rest)
+    if cmd == "day":
+        return _cmd_day(m, rest)
     if cmd in m.focuses:
         return _cmd_focus(m, cmd)
 

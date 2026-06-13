@@ -59,3 +59,14 @@ def test_yard_run_empty_command_after_dashdash(monkeypatch):
     monkeypatch.setattr("pos.yard.run", lambda *a: (_ for _ in ()).throw(AssertionError("should not run")))
     rc = cli.main(["yard", "run", "task", "--"])
     assert rc == 1
+
+
+def test_day_dry_run(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.day.read_daily", lambda d: "work on cenno today")
+    rc = cli.main(["day", "--date", "20260613", "--dry-run"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "hybrid pin plan" in out
+    assert "cenno" in out
+    assert "dry-run" in out
