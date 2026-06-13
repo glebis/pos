@@ -6,7 +6,7 @@ from pathlib import Path
 
 from . import cmux, day, status, yard
 from .label import glyphed_title
-from .manifest import focus_order, load_manifest, projects_by_focus
+from .manifest import focus_order, load_manifest, projects_by_focus, resolve_preset
 from .paths import resolve_path
 
 DEFAULT_MANIFEST = "~/.config/personal-os/focus.toml"
@@ -22,7 +22,102 @@ USAGE = """pos — focus-aligned terminal cockpit
   pos status [--json]     status across projects, grouped by focus
   pos day [--date YYYYMMDD] [--dry-run]
                           hybrid daily pin: focus contexts + today's active projects (from daily note)
+  pos load <preset|names...> [--apply]
+                          converge workspace to a preset: open+pin members, close the rest
+                          (dry-run unless --apply; never closes running jobs or scratch)
 """
+
+PROTECTED = {"scratch"}  # never auto-closed by `pos load`
+
+
+def _running_titles() -> set:
+    """Glyph-stripped titles of workspaces with a running job (from session JSON)."""
+    from .label import strip_glyph
+    from .migrate import is_running, propose_from_session, SESSION_JSON, ws_title
+    import json
+    from pathlib import Path
+
+    try:
+        with open(Path(SESSION_JSON).expanduser()) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return set()
+    out = set()
+    for win in data.get("windows", []):
+        for w in win.get("tabManager", {}).get("workspaces", []):
+            if is_running(w):
+                out.add(strip_glyph(ws_title(w)))
+    return out
+
+
+def _label_for(m, member: str) -> str:
+    """Glyphed label for a focus or project member name."""
+    if member in m.focuses:
+        return glyphed_title(m.focuses[member].glyph, member)
+    if member in m.projects:
+        foc = m.projects[member].focus
+        glyph = m.focuses[foc].glyph if foc in m.focuses else ""
+        return glyphed_title(glyph, member)
+    return member
+
+
+def _cwd_for(m, member: str) -> str:
+    if member in m.focuses:
+        return str(resolve_path(m.focuses[member].home, m.projects_base))
+    if member in m.projects:
+        return str(resolve_path(m.projects[member].path, m.projects_base))
+    return str(Path("~").expanduser())
+
+
+def _cmd_load(m, rest) -> int:
+    apply = "--apply" in rest
+    names = [a for a in rest if not a.startswith("--")]
+    if not names:
+        if m.presets:
+            print("presets:")
+            for name, members in m.presets.items():
+                print(f"  {name}: {', '.join(members)}")
+        else:
+            print("usage: pos load <preset|names...> [--apply]")
+        return 0
+
+    members = resolve_preset(m, names)
+    unknown = [x for x in members if x not in m.focuses and x not in m.projects]
+    if unknown:
+        print(f"unknown member(s): {', '.join(unknown)}", file=sys.stderr)
+        return 1
+
+    wanted = {member for member in members}  # match by name (glyph-stripped) on live tabs
+    ws = cmux.live_workspaces()
+    # SAFETY: live socket has no running-state; overlay it from session JSON so
+    # reconcile never closes a workspace with a running job.
+    ws = cmux.mark_running(ws, _running_titles())
+    plan = cmux.reconcile_plan(ws, wanted=wanted, protect=PROTECTED)
+
+    ref_title = {w["ref"]: w["title"] for w in ws}
+    print(f"pos load: {', '.join(members)}  {'(APPLY)' if apply else '(dry-run)'}")
+    print(f"  open+pin: {', '.join(members)}")
+    if plan["open"]:
+        print(f"    └ to create: {', '.join(sorted(plan['open']))}")
+    print(f"  close: {', '.join(ref_title[r] for r in plan['close']) or '(none)'}")
+    if plan["skip_running"]:
+        print(f"  skip (running): {', '.join(ref_title[r] for r in plan['skip_running'])}")
+
+    if not apply:
+        print("\n(dry-run; pass --apply to converge. Running jobs + scratch are never closed.)")
+        return 0
+
+    # 1. open/focus + pin every member (tmux-backed, idempotent)
+    for member in members:
+        ref = cmux.open_and_label(cwd=_cwd_for(m, member), label=_label_for(m, member))
+        if ref:
+            cmux.run([cmux.CMUX_BIN, "workspace-action", "--workspace", ref, "--action", "pin"])
+    # 2. close the rest (unpin first so closing pinned ones is clean)
+    for ref in plan["close"]:
+        cmux.run([cmux.CMUX_BIN, "workspace-action", "--workspace", ref, "--action", "unpin"])
+        cmux.run([cmux.CMUX_BIN, "close-workspace", "--workspace", ref])
+    print(f"\n  converged: {len(members)} member(s) open+pinned, {len(plan['close'])} closed, {len(plan['skip_running'])} running kept.")
+    return 0
 
 
 def _manifest_path() -> Path:
@@ -173,6 +268,8 @@ def main(argv=None) -> int:
         return _cmd_yard(m, rest)
     if cmd == "day":
         return _cmd_day(m, rest)
+    if cmd == "load":
+        return _cmd_load(m, rest)
     if cmd in m.focuses:
         return _cmd_focus(m, cmd)
 

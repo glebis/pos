@@ -35,3 +35,14 @@ def test_missing_focus_ref_raises():
     with pytest.raises(ValueError, match="unknown focus"):
         load_manifest(Path(bad.name))
     os.unlink(bad.name)
+
+
+def test_loads_presets():
+    m = load_manifest(FIX)
+    assert m.presets["revenue-sprint"] == ["business", "cenno"]
+
+
+def test_presets_default_empty(tmp_path):
+    p = tmp_path / "f.toml"
+    p.write_text('[focuses.x]\nemoji="x"\n')
+    assert load_manifest(p).presets == {}

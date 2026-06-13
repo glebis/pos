@@ -70,3 +70,31 @@ def test_day_dry_run(capsys, monkeypatch):
     assert "hybrid pin plan" in out
     assert "cenno" in out
     assert "dry-run" in out
+
+
+def test_load_dry_run_preset(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.cmux.live_workspaces", lambda: [
+        {"ref": "w1", "title": "◆ cenno", "pinned": True},
+        {"ref": "w2", "title": "◆ devops", "pinned": False},
+    ])
+    rc = cli.main(["load", "revenue-sprint"])  # members: business, cenno
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "dry-run" in out
+    assert "business" in out and "cenno" in out
+    assert "devops" in out  # devops should be listed to close
+
+
+def test_load_unknown_member_errors(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    rc = cli.main(["load", "nonexistent-thing"])
+    assert rc == 1
+
+
+def test_load_bare_lists_presets(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    rc = cli.main(["load"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "revenue-sprint" in out

@@ -26,6 +26,7 @@ class Project:
 class Manifest:
     focuses: dict = field(default_factory=dict)
     projects: dict = field(default_factory=dict)
+    presets: dict = field(default_factory=dict)
     projects_base: str = "~/ai_projects"
 
 
@@ -51,8 +52,23 @@ def load_manifest(path: Path) -> Manifest:
             raise ValueError(
                 f"project {p.name!r} references unknown focus {p.focus!r}"
             )
+    presets = {
+        name: list(p.get("members", []))
+        for name, p in data.get("presets", {}).items()
+    }
     base = data.get("settings", {}).get("projects_base", "~/ai_projects")
-    return Manifest(focuses=focuses, projects=projects, projects_base=base)
+    return Manifest(focuses=focuses, projects=projects, presets=presets, projects_base=base)
+
+
+def resolve_preset(m: Manifest, args: list) -> list:
+    """Resolve `pos load` args into a member list.
+
+    A single arg that names a preset expands to its members; otherwise all args
+    are treated as ad-hoc members (focus or project names).
+    """
+    if len(args) == 1 and args[0] in m.presets:
+        return list(m.presets[args[0]])
+    return list(args)
 
 
 def focus_order(m: Manifest) -> list:
