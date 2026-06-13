@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from . import cmux, status, yard
+from .label import glyphed_title
 from .manifest import focus_order, load_manifest, projects_by_focus
 from .paths import resolve_path
 
@@ -51,8 +52,9 @@ def _cmd_p(m, rest) -> int:
         return 1
     proj = m.projects[name]
     path = resolve_path(proj.path, m.projects_base)
+    glyph = m.focuses[proj.focus].glyph if proj.focus in m.focuses else ""
     cmux.run(cmux.open_workspace_argv(title=name, cwd=str(path)))
-    cmux.run(cmux.rename_workspace_argv(name))
+    cmux.run(cmux.rename_workspace_argv(glyphed_title(glyph, name)))
     return 0
 
 
@@ -108,7 +110,7 @@ def _cmd_yard(m, rest) -> int:
 def _cmd_focus(m, focus) -> int:
     fo = m.focuses[focus]
     cmux.run(cmux.open_workspace_argv(title=focus, cwd=str(resolve_path(fo.home, m.projects_base))))
-    cmux.run(cmux.rename_workspace_argv(focus))
+    cmux.run(cmux.rename_workspace_argv(glyphed_title(fo.glyph, focus)))
     return 0
 
 

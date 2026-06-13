@@ -10,6 +10,7 @@ TIER_ORDER = {"revenue": 0, "rnd": 1, "life": 2, "health": 3, "base": 4}
 class Focus:
     name: str
     emoji: str = ""
+    glyph: str = ""
     tier: str = "base"
     home: str = "~"
 
@@ -35,6 +36,7 @@ def load_manifest(path: Path) -> Manifest:
         name: Focus(
             name=name,
             emoji=f.get("emoji", ""),
+            glyph=f.get("glyph", ""),
             tier=f.get("tier", "base"),
             home=f.get("home", "~"),
         )
