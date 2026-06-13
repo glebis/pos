@@ -1,0 +1,66 @@
+import tomllib
+from dataclasses import dataclass, field
+from pathlib import Path
+
+# tier sort order — mirrors My Focus.md (revenue first)
+TIER_ORDER = {"revenue": 0, "rnd": 1, "life": 2, "health": 3, "base": 4}
+
+
+@dataclass
+class Focus:
+    name: str
+    emoji: str = ""
+    tier: str = "base"
+    home: str = "~"
+
+
+@dataclass
+class Project:
+    name: str
+    focus: str
+    path: str
+
+
+@dataclass
+class Manifest:
+    focuses: dict = field(default_factory=dict)
+    projects: dict = field(default_factory=dict)
+    projects_base: str = "~/ai_projects"
+
+
+def load_manifest(path: Path) -> Manifest:
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+    focuses = {
+        name: Focus(
+            name=name,
+            emoji=f.get("emoji", ""),
+            tier=f.get("tier", "base"),
+            home=f.get("home", "~"),
+        )
+        for name, f in data.get("focuses", {}).items()
+    }
+    projects = {
+        name: Project(name=name, focus=p["focus"], path=p["path"])
+        for name, p in data.get("projects", {}).items()
+    }
+    for p in projects.values():
+        if p.focus not in focuses:
+            raise ValueError(
+                f"project {p.name!r} references unknown focus {p.focus!r}"
+            )
+    base = data.get("settings", {}).get("projects_base", "~/ai_projects")
+    return Manifest(focuses=focuses, projects=projects, projects_base=base)
+
+
+def focus_order(m: Manifest) -> list:
+    return sorted(m.focuses, key=lambda n: (TIER_ORDER.get(m.focuses[n].tier, 99), n))
+
+
+def projects_by_focus(m: Manifest) -> dict:
+    out = {name: [] for name in focus_order(m)}
+    for p in m.projects.values():
+        out.setdefault(p.focus, []).append(p.name)
+    for k in out:
+        out[k].sort()
+    return out

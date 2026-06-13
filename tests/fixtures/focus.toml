@@ -1,0 +1,20 @@
+[settings]
+projects_base = "~/ai_projects"
+
+[focuses.business]
+emoji = "🟢"
+tier  = "revenue"
+home  = "~/Brains/brain"
+
+[focuses.play]
+emoji = "🧪"
+tier  = "rnd"
+home  = "~/ai_projects"
+
+[projects.cenno]
+focus = "business"
+path  = "~/ai_projects/cenno"
+
+[projects.generative-sequencer]
+focus = "play"
+path  = "~/ai_projects/generative-sequencer"
