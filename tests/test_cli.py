@@ -98,3 +98,22 @@ def test_load_bare_lists_presets(capsys, monkeypatch):
     out = capsys.readouterr().out
     assert rc == 0
     assert "revenue-sprint" in out
+
+
+def test_load_force_ignores_running_overlay(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.cmux.live_workspaces", lambda: [
+        {"ref": "w1", "title": "◇ Voice", "pinned": False},
+        {"ref": "w2", "title": "◆ cenno", "pinned": False},
+    ])
+    # session JSON would mark Voice running, but --force skips that overlay
+    monkeypatch.setattr("pos.cli._running_titles", lambda: {"Voice"})
+    # without force: Voice protected (skip running)
+    cli.main(["load", "cenno"])
+    out_noforce = capsys.readouterr().out
+    assert "Voice" in out_noforce and "skip (running)" in out_noforce
+    # with force: Voice is closeable
+    cli.main(["load", "cenno", "--force"])
+    out_force = capsys.readouterr().out
+    assert "skip (running)" not in out_force
+    assert "Voice" in out_force  # now in close list

@@ -22,9 +22,10 @@ USAGE = """pos — focus-aligned terminal cockpit
   pos status [--json]     status across projects, grouped by focus
   pos day [--date YYYYMMDD] [--dry-run]
                           hybrid daily pin: focus contexts + today's active projects (from daily note)
-  pos load <preset|names...> [--apply]
+  pos load <preset|names...> [--apply] [--force]
                           converge workspace to a preset: open+pin members, close the rest
-                          (dry-run unless --apply; never closes running jobs or scratch)
+                          (dry-run unless --apply; never closes running jobs or scratch;
+                           --force ignores stale running badges when you've verified live)
 """
 
 PROTECTED = {"scratch"}  # never auto-closed by `pos load`
@@ -71,6 +72,7 @@ def _cwd_for(m, member: str) -> str:
 
 def _cmd_load(m, rest) -> int:
     apply = "--apply" in rest
+    force = "--force" in rest  # ignore stale running-state badges (verified live)
     names = [a for a in rest if not a.startswith("--")]
     if not names:
         if m.presets:
@@ -90,8 +92,10 @@ def _cmd_load(m, rest) -> int:
     wanted = {member for member in members}  # match by name (glyph-stripped) on live tabs
     ws = cmux.live_workspaces()
     # SAFETY: live socket has no running-state; overlay it from session JSON so
-    # reconcile never closes a workspace with a running job.
-    ws = cmux.mark_running(ws, _running_titles())
+    # reconcile never closes a workspace with a running job. --force skips this
+    # (cmux persists STALE badges; use when you've verified live state yourself).
+    if not force:
+        ws = cmux.mark_running(ws, _running_titles())
     plan = cmux.reconcile_plan(ws, wanted=wanted, protect=PROTECTED)
 
     ref_title = {w["ref"]: w["title"] for w in ws}
