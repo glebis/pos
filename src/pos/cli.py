@@ -129,8 +129,9 @@ def _cmd_day(m, rest) -> int:
     if dry:
         print("\n(dry-run; pass without --dry-run to pin)")
         return 0
-    pinned = day._pin_workspace_by_title(wanted)
-    print(f"\n  pinned {len(pinned)} live workspace(s): {', '.join(pinned) or '(none matched open tabs)'}")
+    pinned = day._pin_workspace_by_title(wanted)  # unpins all others first
+    print(f"\n  (unpinned everything else first)")
+    print(f"  pinned {len(pinned)} live workspace(s): {', '.join(pinned) or '(none matched open tabs)'}")
     from .label import strip_glyph
 
     missing = wanted - {strip_glyph(t) for t in pinned}

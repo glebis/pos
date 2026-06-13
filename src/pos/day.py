@@ -47,16 +47,36 @@ def read_daily(date_str: str) -> str:
     return p.read_text() if p.exists() else ""
 
 
-def _pin_workspace_by_title(wanted_titles: set) -> list:
-    """Pin live workspaces whose glyph-stripped title is in wanted_titles."""
-    out = subprocess.run([CMUX_BIN, "--json", "list-workspaces"], capture_output=True, text=True)
+def _live_workspaces() -> list:
     import json
 
+    out = subprocess.run([CMUX_BIN, "--json", "list-workspaces"], capture_output=True, text=True)
     try:
         ws = json.loads(out.stdout or "[]")
     except json.JSONDecodeError:
         return []
-    ws = ws if isinstance(ws, list) else ws.get("workspaces", ws)
+    return ws if isinstance(ws, list) else ws.get("workspaces", ws)
+
+
+def _unpin_all(workspaces) -> list:
+    """Unpin every currently-pinned workspace. Returns titles unpinned."""
+    unpinned = []
+    for w in workspaces:
+        if w.get("pinned"):
+            run([CMUX_BIN, "workspace-action", "--workspace", w["ref"], "--action", "unpin"])
+            unpinned.append(w["title"])
+    return unpinned
+
+
+def _pin_workspace_by_title(wanted_titles: set, unpin_others: bool = True) -> list:
+    """Pin live workspaces matching wanted_titles.
+
+    With unpin_others=True (default), first unpins ALL currently-pinned
+    workspaces so the resulting pinned set is exactly today's plan.
+    """
+    ws = _live_workspaces()
+    if unpin_others:
+        _unpin_all(ws)
     pinned = []
     for w in ws:
         if strip_glyph(w.get("title", "")) in wanted_titles:
