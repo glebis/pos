@@ -82,8 +82,12 @@ def _cmd_yard(m, rest) -> int:
         args = rest[1:]
         if "--" in args:
             sep = args.index("--")
-            name, command = args[sep - 1], " ".join(args[sep + 1 :])
-        elif args:
+            # require exactly one token (the name) before --, and a non-empty command after
+            if sep != 1 or sep + 1 >= len(args):
+                print("usage: pos yard run <name> -- <cmd>", file=sys.stderr)
+                return 1
+            name, command = args[0], " ".join(args[sep + 1 :])
+        elif len(args) >= 2:
             name, command = args[0], " ".join(args[1:])
         else:
             print("usage: pos yard run <name> -- <cmd>", file=sys.stderr)

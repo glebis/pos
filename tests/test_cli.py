@@ -36,3 +36,26 @@ def test_unknown_command_returns_1(capsys, monkeypatch):
     monkeypatch.setenv("POS_MANIFEST", FIX)
     rc = cli.main(["frobnicate"])
     assert rc == 1
+
+
+def test_yard_run_valid(monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    calls = []
+    monkeypatch.setattr("pos.yard.run", lambda name, command: calls.append((name, command)))
+    rc = cli.main(["yard", "run", "crawl", "--", "firecrawl", "go"])
+    assert rc == 0
+    assert calls == [("crawl", "firecrawl go")]
+
+
+def test_yard_run_missing_name_before_dashdash(monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.yard.run", lambda *a: (_ for _ in ()).throw(AssertionError("should not run")))
+    rc = cli.main(["yard", "run", "--", "ls"])
+    assert rc == 1
+
+
+def test_yard_run_empty_command_after_dashdash(monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.yard.run", lambda *a: (_ for _ in ()).throw(AssertionError("should not run")))
+    rc = cli.main(["yard", "run", "task", "--"])
+    assert rc == 1
