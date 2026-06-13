@@ -1,13 +1,24 @@
 from pos.cmux import CMUX_BIN, open_workspace_argv, sidecar_argv
 
 
-def test_open_workspace_argv():
+def test_open_workspace_argv_is_tmux_backed():
     argv = open_workspace_argv(title="business", cwd="/Users/test/Brains/brain")
     assert argv[0] == CMUX_BIN
     assert "new-workspace" in argv
     assert "--command" in argv
     cmd = argv[argv.index("--command") + 1]
+    # durable: attach-or-create a named tmux session, started in cwd
+    assert "tmux new-session -A -s" in cmd
+    assert "business" in cmd
     assert "/Users/test/Brains/brain" in cmd
+
+
+def test_session_name_sanitizes():
+    from pos.cmux import session_name
+    assert session_name("◆ business") == "business"
+    assert session_name("unknowing.community") == "unknowing-community"
+    assert session_name("CC Lab 04") == "CC-Lab-04"
+    assert session_name("cenno") == "cenno"
 
 
 def test_sidecar_browser_argv():

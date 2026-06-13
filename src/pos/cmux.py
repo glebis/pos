@@ -1,12 +1,35 @@
+import re
 import shlex
 import subprocess
+
+from .label import strip_glyph
 
 CMUX_BIN = "/Applications/cmux.app/Contents/Resources/bin/cmux"
 
 
+def session_name(label: str) -> str:
+    """Derive a tmux-safe session name from a workspace label.
+
+    tmux session names must not contain '.' or ':'; we also drop the focus
+    glyph and collapse whitespace, so `pos <name>` always maps to the SAME
+    session (attach-or-create idempotency + durability).
+    """
+    base = strip_glyph(label)
+    base = re.sub(r"[\s.:]+", "-", base.strip())
+    base = re.sub(r"-{2,}", "-", base).strip("-")
+    return base or "session"
+
+
 def open_workspace_argv(title: str, cwd: str) -> list:
-    """Open a new workspace whose shell starts in cwd (rename happens separately)."""
-    command = f"cd {shlex.quote(cwd)} && exec ${{SHELL:-/bin/zsh}}"
+    """Open a workspace backed by a durable tmux session (attach-or-create).
+
+    `tmux new-session -A -s <name>` attaches an existing session of that name
+    or creates it — so the workspace survives cmux quitting/crashing, and
+    re-opening via `pos` re-attaches the same live session (resurrect/continuum
+    restore it across reboots).
+    """
+    sess = session_name(title)
+    command = f"tmux new-session -A -s {shlex.quote(sess)} -c {shlex.quote(cwd)}"
     return [CMUX_BIN, "new-workspace", "--command", command]
 
 
