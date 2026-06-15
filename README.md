@@ -149,4 +149,4 @@ Pure logic (argv builders, planners, parsers) is separated from side-effecting c
 
 ## License
 
-[Apache-2.0](LICENSE) © 2026 Gleb Kalinin. See [AUTHORS](AUTHORS) for contributors.
+[Apache-2.0](LICENSE) © 2026 Gleb Kalinin. See [AUTHORSHIP.md](AUTHORSHIP.md) for the authorship record and [NOTICE](NOTICE) for attribution.
