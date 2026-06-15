@@ -82,3 +82,26 @@ def projects_by_focus(m: Manifest) -> dict:
     for k in out:
         out[k].sort()
     return out
+
+
+def expand_focus_members(m: Manifest, members: list) -> list:
+    """Replace any focus name in `members` with that focus's project names.
+
+    Project names and unknowns pass through unchanged. Order is preserved and
+    duplicates collapsed. A focus with no projects falls back to itself (so
+    `pos load <empty-focus>` still opens the focus's home tab rather than nothing).
+    """
+    grouped = projects_by_focus(m)
+    expanded = []
+    for x in members:
+        if x in m.focuses:
+            projs = grouped.get(x, [])
+            expanded.extend(projs if projs else [x])
+        else:
+            expanded.append(x)
+    seen, out = set(), []
+    for x in expanded:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out

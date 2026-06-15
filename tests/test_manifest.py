@@ -46,3 +46,24 @@ def test_presets_default_empty(tmp_path):
     p = tmp_path / "f.toml"
     p.write_text('[focuses.x]\nemoji="x"\n')
     assert load_manifest(p).presets == {}
+
+
+from pos.manifest import expand_focus_members
+
+
+def test_expand_focus_members_replaces_focus_with_projects():
+    m = load_manifest(FIX)
+    # business -> its projects (cenno); play -> generative-sequencer
+    assert expand_focus_members(m, ["business"]) == ["cenno"]
+    assert expand_focus_members(m, ["play"]) == ["generative-sequencer"]
+
+
+def test_expand_focus_members_passes_projects_through_and_dedupes():
+    m = load_manifest(FIX)
+    # cenno is a project (passthrough); business expands to cenno -> deduped
+    assert expand_focus_members(m, ["cenno", "business"]) == ["cenno"]
+
+
+def test_expand_focus_members_keeps_unknowns():
+    m = load_manifest(FIX)
+    assert expand_focus_members(m, ["whatever"]) == ["whatever"]

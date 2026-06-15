@@ -45,6 +45,15 @@ def rename_workspace_argv(title: str, ref: str | None = None) -> list:
     return [CMUX_BIN, "rename-workspace", title]
 
 
+def rename_tab_argv(title: str, ref: str) -> list:
+    """Rename the INNER tab bar of a workspace (separate from the sidebar title).
+
+    cmux titles a new tab with its launch command (e.g. 'tmux new-session …');
+    setting a custom tab title here is what makes the tab read 'cenno' instead.
+    """
+    return [CMUX_BIN, "rename-tab", "--workspace", ref, title]
+
+
 def parse_new_workspace_ref(stdout: str) -> str | None:
     """Extract the workspace UUID from `new-workspace` output ('OK <uuid>')."""
     parts = (stdout or "").strip().split()
@@ -80,6 +89,81 @@ def find_workspace_ref(workspaces: list, label: str) -> str | None:
         if strip_glyph(w.get("title", "")) == target:
             return w["ref"]
     return None
+
+
+def current_window_id() -> str | None:
+    """UUID of the window the socket considers current, else None."""
+    out = run([CMUX_BIN, "current-window"])
+    wid = (out.stdout or "").strip().split()[0] if out.stdout else ""
+    return wid or None
+
+
+def window_workspaces() -> dict:
+    """Workspaces in the CURRENT window (list-workspaces is window-scoped).
+
+    Returns {window_id, workspaces:[{id,ref,title,selected,pinned}]}; empty on
+    socket failure. Uses `--id-format both` so each workspace carries its stable
+    UUID (`id`) for state that must survive across separate `pos` invocations.
+    """
+    import json
+
+    out = run([CMUX_BIN, "--json", "--id-format", "both", "list-workspaces"])
+    try:
+        data = json.loads(out.stdout or "{}")
+    except json.JSONDecodeError:
+        return {"window_id": None, "workspaces": []}
+    return {
+        "window_id": data.get("window_id") or data.get("window_ref"),
+        "workspaces": data.get("workspaces", []),
+    }
+
+
+def parse_ok_uuid(stdout: str) -> str | None:
+    """Extract the UUID from an `OK <uuid>` reply (e.g. new-window)."""
+    parts = (stdout or "").strip().split()
+    return parts[1] if len(parts) >= 2 and parts[0] == "OK" else None
+
+
+def parse_windows(text: str) -> list:
+    """Parse `list-windows` lines into [{id, selected_workspace, count, selected}].
+
+    A line looks like: `* 0: <uuid> selected_workspace=<uuid> workspaces=11`
+    (the leading `*` marks the current window).
+    """
+    out = []
+    for line in (text or "").splitlines():
+        s = line.strip()
+        sel = s.startswith("*")
+        s = s.lstrip("* ")
+        m = re.match(r"\d+:\s+(\S+)\s+selected_workspace=(\S+)\s+workspaces=(\d+)", s)
+        if m:
+            out.append({"id": m.group(1), "selected_workspace": m.group(2),
+                        "count": int(m.group(3)), "selected": sel})
+    return out
+
+
+def list_windows() -> list:
+    return parse_windows(run([CMUX_BIN, "list-windows"]).stdout or "")
+
+
+def pinned_first_order(workspaces: list) -> list:
+    """Refs of `workspaces` reordered so pinned ones lead, each group stable."""
+    pinned = [w["ref"] for w in workspaces if w.get("pinned")]
+    rest = [w["ref"] for w in workspaces if not w.get("pinned")]
+    return pinned + rest
+
+
+def reorder_pinned_first() -> int:
+    """Reorder the current window so pinned workspaces sit at the top. Returns the
+    number of moves issued (0 if already in order)."""
+    ws = window_workspaces()["workspaces"]
+    desired = pinned_first_order(ws)
+    current = [w["ref"] for w in ws]
+    if desired == current:
+        return 0
+    for i, ref in enumerate(desired):
+        run([CMUX_BIN, "reorder-workspace", "--workspace", ref, "--index", str(i)])
+    return len(desired)
 
 
 def is_running_ws(ws: dict) -> bool:
@@ -144,9 +228,107 @@ def open_and_label(cwd: str, label: str) -> str | None:
     existing = find_workspace_ref(live_workspaces(), label)
     if existing:
         run([CMUX_BIN, "select-workspace", "--workspace", existing])
+        run(rename_tab_argv(label, ref=existing))  # normalize a stale inner tab title
         return existing
     res = run(open_workspace_argv(title=label, cwd=cwd))
     ref = parse_new_workspace_ref(res.stdout)
     if ref:
-        run(rename_workspace_argv(label, ref=ref))
+        run(rename_workspace_argv(label, ref=ref))  # sidebar title
+        run(rename_tab_argv(label, ref=ref))        # inner tab bar
     return ref
+
+
+# ── live running-state protection (so `pos load` never closes a busy tab) ──
+# Shells that mean "idle prompt"; anything else in the foreground = a live job.
+SHELL_CMDS = {"zsh", "bash", "sh", "fish", "-zsh", "-bash", "-sh", "login", "tmux"}
+
+
+def tmux_session_for_title(title: str) -> str | None:
+    """Best-effort tmux session name that a workspace title maps to.
+
+    Handles pos's tmux-backed tabs (glyphed label, e.g. '∴ brain' -> 'brain',
+    '◆ unknowing.community' -> 'unknowing-community') AND raw attach/new-session
+    command titles ('tmux attach-session -t Exploration' -> 'Exploration').
+    """
+    m = re.search(r"-[ts]\s+(\S+)", title)
+    if m:
+        return m.group(1)
+    return session_name(title) or None
+
+
+def busy_sessions_from_panes(lines) -> set:
+    """Given '<session> <foreground-cmd>' lines, return the sessions running a
+    non-shell job. Pure — `live_busy_sessions` feeds it real `tmux` output."""
+    busy = set()
+    for line in lines:
+        parts = line.strip().split(None, 1)
+        if len(parts) < 2:
+            continue
+        sess, cmd = parts[0], parts[1].strip()
+        if cmd not in SHELL_CMDS:
+            busy.add(sess)
+    return busy
+
+
+def live_busy_sessions() -> set:
+    """tmux sessions with a live (non-shell) foreground process, queried live.
+
+    This is the reliable running signal — the cmux socket exposes none, and
+    cmux's persisted badges go stale. Empty set if tmux is unreachable."""
+    out = run(["tmux", "list-panes", "-a", "-F", "#{session_name} #{pane_current_command}"])
+    if out.returncode != 0:
+        return set()
+    return busy_sessions_from_panes((out.stdout or "").splitlines())
+
+
+def mark_running_tmux(workspaces: list, busy_sessions: set) -> list:
+    """Overlay running=True on workspaces whose backing tmux session is busy."""
+    out = []
+    for w in workspaces:
+        w = dict(w)
+        sess = tmux_session_for_title(w.get("title", ""))
+        if sess and sess in busy_sessions:
+            w["running"] = True
+        out.append(w)
+    return out
+
+
+def mark_running_refs(workspaces: list, refs: set) -> list:
+    """Overlay running=True on workspaces whose ref is in `refs` (the launching
+    / focused tab — never close the session an operation was started from)."""
+    out = []
+    for w in workspaces:
+        w = dict(w)
+        if w.get("ref") in refs:
+            w["running"] = True
+        out.append(w)
+    return out
+
+
+def current_workspace_refs() -> set:
+    """Refs of the workspace the operation was launched from — the caller pane
+    and the focused tab (per `cmux identify`). These must never be closed."""
+    import json
+
+    refs = set()
+    out = run([CMUX_BIN, "--json", "identify"])
+    try:
+        data = json.loads(out.stdout or "{}")
+    except json.JSONDecodeError:
+        return refs
+    for key in ("caller", "focused"):
+        node = data.get(key)
+        if isinstance(node, dict) and node.get("workspace_ref"):
+            refs.add(node["workspace_ref"])
+    return refs
+
+
+def current_tmux_session() -> str | None:
+    """Name of the tmux session this process runs in ($TMUX), else None."""
+    import os
+
+    if not os.environ.get("TMUX"):
+        return None
+    out = run(["tmux", "display-message", "-p", "#{session_name}"])
+    name = (out.stdout or "").strip()
+    return name or None

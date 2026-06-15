@@ -11,6 +11,7 @@ dependencies = []
 
 [project.scripts]
 pos = "pos.cli:main"
+pos-cc = "pos.cc:wrapper_main"
 
 [build-system]
 requires = ["uv_build>=0.9.25,<0.10.0"]

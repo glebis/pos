@@ -113,3 +113,85 @@ def test_mark_running_overlays_session_state():
     plan = reconcile_plan(marked, wanted={"cenno"}, protect=set())
     assert "w1" in plan["skip_running"]
     assert "w1" not in plan["close"]
+
+
+from pos.cmux import (
+    tmux_session_for_title,
+    busy_sessions_from_panes,
+    mark_running_tmux,
+    mark_running_refs,
+)
+
+
+def test_tmux_session_for_title_parses_attach_command():
+    assert tmux_session_for_title("tmux attach-session -t Exploration") == "Exploration"
+    assert tmux_session_for_title("tmux attach -t 6") == "6"
+    assert tmux_session_for_title("tmux new-session -A -s brain -c /x") == "brain"
+
+
+def test_tmux_session_for_title_maps_glyphed_label():
+    assert tmux_session_for_title("∴ brain") == "brain"
+    assert tmux_session_for_title("◆ unknowing.community") == "unknowing-community"
+    assert tmux_session_for_title("scratch") == "scratch"
+
+
+def test_busy_sessions_from_panes_flags_nonshell():
+    lines = [
+        "Exploration 2.1.177",   # claude/node-ish -> busy
+        "brain zsh",             # idle shell
+        "play zsh",
+        "scratch zsh",
+        "0 vim",                 # busy
+        "  ",                    # blank -> ignored
+        "weird",                 # no cmd -> ignored
+    ]
+    assert busy_sessions_from_panes(lines) == {"Exploration", "0"}
+
+
+def test_mark_running_tmux_overlays_busy_sessions():
+    ws = [
+        {"ref": "w1", "title": "tmux attach-session -t Exploration"},
+        {"ref": "w2", "title": "◆ cenno"},
+        {"ref": "w3", "title": "∴ brain"},
+    ]
+    marked = mark_running_tmux(ws, busy_sessions={"Exploration", "brain"})
+    by_ref = {w["ref"]: w for w in marked}
+    assert by_ref["w1"]["running"] is True
+    assert by_ref["w2"].get("running") is not True
+    assert by_ref["w3"]["running"] is True
+
+
+def test_mark_running_refs_overlays_given_refs():
+    ws = [{"ref": "w1", "title": "a"}, {"ref": "w2", "title": "b"}]
+    marked = mark_running_refs(ws, refs={"w2"})
+    by_ref = {w["ref"]: w for w in marked}
+    assert by_ref["w2"]["running"] is True
+    assert by_ref["w1"].get("running") is not True
+
+
+from pos import cmux as _cmux
+from pos.cmux import rename_tab_argv
+
+
+def test_rename_tab_argv_targets_workspace():
+    argv = rename_tab_argv("cenno", ref="w9")
+    assert "rename-tab" in argv
+    assert "--workspace" in argv and "w9" in argv
+    assert argv[-1] == "cenno"
+
+
+def test_open_and_label_names_both_workspace_and_tab(monkeypatch):
+    calls = []
+    monkeypatch.setattr(_cmux, "live_workspaces", lambda: [])  # nothing existing
+    monkeypatch.setattr(_cmux, "run", lambda argv: calls.append(argv) or _Res("OK new-uuid"))
+    ref = _cmux.open_and_label(cwd="/x", label="cenno")
+    assert ref == "new-uuid"
+    flat = [" ".join(c) for c in calls]
+    assert any("rename-workspace" in c and "new-uuid" in c and c.endswith("cenno") for c in flat)
+    assert any("rename-tab" in c and "new-uuid" in c and c.endswith("cenno") for c in flat)
+
+
+class _Res:
+    def __init__(self, stdout):
+        self.stdout = stdout
+        self.returncode = 0

@@ -72,8 +72,16 @@ def test_day_dry_run(capsys, monkeypatch):
     assert "dry-run" in out
 
 
+def _stub_protection(monkeypatch):
+    """Neutralize the live-protection shell-outs so load tests stay hermetic."""
+    monkeypatch.setattr("pos.cmux.live_busy_sessions", lambda: set())
+    monkeypatch.setattr("pos.cmux.current_workspace_refs", lambda: set())
+    monkeypatch.setattr("pos.cmux.current_tmux_session", lambda: None)
+
+
 def test_load_dry_run_preset(capsys, monkeypatch):
     monkeypatch.setenv("POS_MANIFEST", FIX)
+    _stub_protection(monkeypatch)
     monkeypatch.setattr("pos.cmux.live_workspaces", lambda: [
         {"ref": "w1", "title": "◆ cenno", "pinned": True},
         {"ref": "w2", "title": "◆ devops", "pinned": False},
@@ -102,6 +110,7 @@ def test_load_bare_lists_presets(capsys, monkeypatch):
 
 def test_load_force_ignores_running_overlay(capsys, monkeypatch):
     monkeypatch.setenv("POS_MANIFEST", FIX)
+    _stub_protection(monkeypatch)
     monkeypatch.setattr("pos.cmux.live_workspaces", lambda: [
         {"ref": "w1", "title": "◇ Voice", "pinned": False},
         {"ref": "w2", "title": "◆ cenno", "pinned": False},
@@ -117,3 +126,95 @@ def test_load_force_ignores_running_overlay(capsys, monkeypatch):
     out_force = capsys.readouterr().out
     assert "skip (running)" not in out_force
     assert "Voice" in out_force  # now in close list
+
+
+def test_load_focus_expands_to_projects(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    _stub_protection(monkeypatch)
+    monkeypatch.setattr("pos.cmux.live_workspaces", lambda: [])
+    # business focus -> its projects (cenno), NOT the bare focus name
+    rc = cli.main(["load", "business"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "cenno" in out
+    # focus should have been expanded away (members line is projects, not "business")
+    assert "open+pin: cenno" in out
+
+
+def test_bare_focus_verb_routes_to_load(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    _stub_protection(monkeypatch)
+    monkeypatch.setattr("pos.cmux.live_workspaces", lambda: [])
+    # `pos business` should behave like `pos load business` (dry-run plan)
+    rc = cli.main(["business"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "dry-run" in out
+    assert "cenno" in out
+
+
+def test_load_never_closes_launching_tab(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.cmux.live_busy_sessions", lambda: set())
+    monkeypatch.setattr("pos.cli._running_titles", lambda: set())
+    # the operation is launched from the 'devops' tab (focused per identify)
+    monkeypatch.setattr("pos.cmux.current_workspace_refs", lambda: {"w2"})
+    monkeypatch.setattr("pos.cmux.current_tmux_session", lambda: None)
+    monkeypatch.setattr("pos.cmux.live_workspaces", lambda: [
+        {"ref": "w1", "title": "◆ cenno", "pinned": False},
+        {"ref": "w2", "title": "◆ devops", "pinned": False},  # launching tab
+    ])
+    cli.main(["load", "cenno"])
+    out = capsys.readouterr().out
+    # devops is not wanted and idle, but it's the launching tab -> never closed
+    assert "skip (running): ◆ devops" in out or "devops" not in out.split("close:")[1].split("\n")[0]
+
+
+def test_load_guards_current_tmux_session(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.cmux.live_busy_sessions", lambda: set())
+    monkeypatch.setattr("pos.cli._running_titles", lambda: set())
+    monkeypatch.setattr("pos.cmux.current_workspace_refs", lambda: set())
+    # pos is running inside the 'Exploration' tmux session
+    monkeypatch.setattr("pos.cmux.current_tmux_session", lambda: "Exploration")
+    monkeypatch.setattr("pos.cmux.live_workspaces", lambda: [
+        {"ref": "w1", "title": "◆ cenno", "pinned": False},
+        {"ref": "w2", "title": "tmux attach-session -t Exploration", "pinned": False},
+    ])
+    cli.main(["load", "cenno"])
+    out = capsys.readouterr().out
+    close_line = [l for l in out.splitlines() if l.startswith("  close:")][0]
+    assert "Exploration" not in close_line  # current session tab guarded
+
+
+def test_cc_opens_focus_workspace(monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    calls = []
+
+    def fake_open(focus, cwd, glyph):
+        calls.append((focus, cwd, glyph))
+        return "workspace:7"
+
+    monkeypatch.setattr("pos.cc.open_cc", fake_open)
+    rc = cli.main(["cc", "business"])
+    assert rc == 0
+    assert len(calls) == 1 and calls[0][0] == "business"
+
+
+def test_cc_returns_1_when_open_fails(monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.cc.open_cc", lambda focus, cwd, glyph: None)
+    assert cli.main(["cc", "business"]) == 1
+
+
+def test_cc_unknown_focus_returns_1(monkeypatch, capsys):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    rc = cli.main(["cc", "frobnicate"])
+    assert rc == 1
+    assert "unknown focus" in capsys.readouterr().err
+
+
+def test_cc_no_arg_returns_1(monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    rc = cli.main(["cc"])
+    assert rc == 1
