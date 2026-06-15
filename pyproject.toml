@@ -4,8 +4,10 @@ version = "0.1.0"
 description = "Focus-aligned terminal cockpit over cmux + tmux"
 readme = "README.md"
 authors = [
-    { name = "glebis", email = "glebis@gmail.com" }
+    { name = "Gleb Kalinin", email = "glebis@gmail.com" }
 ]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = []
 

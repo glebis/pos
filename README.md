@@ -24,6 +24,7 @@
 - [Settings](#settings)
 - [Development](#development)
 - [Related](#related)
+- [License](#license)
 
 ## Concept
 
@@ -145,3 +146,7 @@ Pure logic (argv builders, planners, parsers) is separated from side-effecting c
 - [tmux](https://github.com/tmux/tmux) · [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) · [tmux-continuum](https://github.com/tmux-plugins/tmux-continuum)
 - [AeroSpace](https://github.com/nikitabobko/AeroSpace) — tiling WM used by `pos tile`
 - [Claude Code](https://claude.com/claude-code) — what `pos cc` launches with resume
+
+## License
+
+[Apache-2.0](LICENSE) © 2026 Gleb Kalinin. See [AUTHORS](AUTHORS) for contributors.
