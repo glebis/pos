@@ -3,18 +3,31 @@ from pathlib import Path
 
 
 def git_state(path: Path) -> dict:
-    def _git(*args):
-        return subprocess.run(
-            ["git", *args], cwd=str(path), capture_output=True, text=True
-        )
+    """Branch + dirtiness of a repo in a single git invocation.
 
-    # Detect a work tree without relying on HEAD resolving (an unborn branch
-    # — repo created, nothing committed — has no resolvable HEAD but is still
-    # a repo that can be dirty with untracked files).
-    inside = _git("rev-parse", "--is-inside-work-tree")
-    if inside.returncode != 0 or inside.stdout.strip() != "true":
+    `git status --porcelain --branch` emits a leading `## <branch>` header
+    (covering unborn branches via `## No commits yet on <branch>` and detached
+    HEAD via `## HEAD (no branch)`) followed by one line per change. One spawn
+    gives us both signals; a non-zero exit means the path isn't a work tree.
+    """
+    proc = subprocess.run(
+        ["git", "status", "--porcelain", "--branch"],
+        cwd=str(path),
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
         return {"branch": None, "dirty": False}
-    # branch --show-current returns the (possibly unborn) branch name.
-    branch = _git("branch", "--show-current").stdout.strip() or None
-    dirty = bool(_git("status", "--porcelain").stdout.strip())
+
+    lines = proc.stdout.splitlines()
+    header = lines[0][3:] if lines and lines[0].startswith("## ") else ""
+    dirty = any(line.strip() for line in lines[1:])
+
+    if header.startswith("No commits yet on "):
+        branch = header[len("No commits yet on ") :] or None
+    elif header.startswith("HEAD ("):  # detached HEAD: '## HEAD (no branch)'
+        branch = None
+    else:
+        branch = header.split("...", 1)[0] or None
+
     return {"branch": branch, "dirty": dirty}

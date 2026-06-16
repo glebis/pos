@@ -24,6 +24,47 @@ def test_bare_lists_focuses(capsys, monkeypatch):
     assert rc == 0
 
 
+def test_status_is_json_when_piped_without_a_flag(capsys, monkeypatch):
+    # No --json, but capsys is not a TTY → agent-facing JSON by default.
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.status.git_state", lambda p: {"branch": "main", "dirty": False})
+    rc = cli.main(["status"])
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 0 and any(r["project"] == "cenno" for r in data)
+
+
+def test_status_human_flag_overrides_pipe(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("pos.status.git_state", lambda p: {"branch": "main", "dirty": False})
+    rc = cli.main(["status", "--human"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "·" in out  # human row separator, not JSON
+
+
+def test_bare_is_json_when_piped(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    rc = cli.main([])
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    names = {f["name"] for f in data}
+    assert {"business", "play"} <= names
+
+
+def test_help_json_returns_command_table(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    rc = cli.main(["help", "--json"])
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 0 and any(c["name"] == "status" for c in data)
+
+
+def test_help_agents_prints_guide(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    rc = cli.main(["help", "agents"])
+    out = capsys.readouterr().out
+    assert rc == 0 and "MENTAL MODEL" in out
+
+
 def test_p_lists_projects_grouped(capsys, monkeypatch):
     monkeypatch.setenv("POS_MANIFEST", FIX)
     rc = cli.main(["p"])
