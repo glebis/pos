@@ -73,6 +73,81 @@ def test_p_lists_projects_grouped(capsys, monkeypatch):
     assert rc == 0
 
 
+def _fake_sidecar(monkeypatch, existing):
+    """Wire cmux so _cmd_sidecar runs offline; return the recorded run() argvs.
+    The create call reports a fresh surface ref via stdout, as real cmux does."""
+    import subprocess
+
+    from pos import cmux
+
+    monkeypatch.setattr(cmux, "current_workspace_ref", lambda: "workspace:1")
+    monkeypatch.setattr(cmux, "workspace_surfaces", lambda ws: existing)
+    recorded = []
+
+    def fake_run(argv):
+        recorded.append(argv)
+        stdout = "OK surface:99 pane:1 workspace:1" if ("new-pane" in argv or "new-surface" in argv) else ""
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    monkeypatch.setattr(cmux, "run", fake_run)
+    return recorded
+
+
+def test_sidecar_names_new_tab_after_folder(monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    folder = Path.cwd().name
+    recorded = _fake_sidecar(monkeypatch, [{"ref": "surface:1", "title": "shell"}])
+    rc = cli.main(["sidecar"])
+    assert rc == 0
+    rename = [a for a in recorded if "rename-tab" in a]
+    assert rename, "expected a rename-tab call"
+    assert rename[-1][-1] == folder
+    assert "surface:99" in rename[-1]  # renamed the surface cmux reported
+
+
+def test_sidecar_numbers_a_colliding_folder_name(monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    folder = Path.cwd().name
+    recorded = _fake_sidecar(monkeypatch, [{"ref": "surface:1", "title": folder}])
+    rc = cli.main(["sidecar"])
+    assert rc == 0
+    rename = [a for a in recorded if "rename-tab" in a]
+    assert rename[-1][-1] == f"{folder} 2"
+
+
+def test_sidecar_explicit_name_overrides_folder(monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    recorded = _fake_sidecar(monkeypatch, [{"ref": "surface:1", "title": "shell"}])
+    rc = cli.main(["sidecar", "logs"])
+    assert rc == 0
+    rename = [a for a in recorded if "rename-tab" in a]
+    assert rename[-1][-1] == "logs"
+
+
+def test_sidecar_browser_targets_workspace(monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    recorded = _fake_sidecar(monkeypatch, [])
+    rc = cli.main(["sidecar", "https://example.com"])
+    assert rc == 0
+    create = next(a for a in recorded if "new-surface" in a)
+    assert "https://example.com" in create
+    assert create[create.index("--workspace") + 1] == "workspace:1"
+
+
+def test_sidecar_no_workspace_returns_1(monkeypatch, capsys):
+    from pos import cmux
+
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr(cmux, "current_workspace_ref", lambda: None)
+    rc = cli.main(["sidecar"])
+    assert rc == 1
+    assert "no current workspace" in capsys.readouterr().err
+
+
 def test_unknown_command_returns_1(capsys, monkeypatch):
     monkeypatch.setenv("POS_MANIFEST", FIX)
     rc = cli.main(["frobnicate"])

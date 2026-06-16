@@ -398,9 +398,24 @@ def _cmd_open(m, rest) -> int:
 
 
 def _cmd_sidecar(m, rest) -> int:
-    target = rest[0] if rest else None
-    url = target if (target and "://" in target) else None
-    cmux.run(cmux.sidecar_argv(url))
+    """pos sidecar [url] [name] — add a browser (url) or terminal sidecar to the
+    current workspace, naming its tab after the current folder (a numeric suffix
+    disambiguates repeats). A non-url positional arg overrides the name."""
+    url = next((a for a in rest if "://" in a), None)
+    explicit = next((a for a in rest if "://" not in a and not a.startswith("-")), None)
+
+    ws = cmux.current_workspace_ref()
+    if not ws:
+        print("pos sidecar: no current workspace (socket unreachable?)", file=sys.stderr)
+        return 1
+
+    existing = {s["title"] for s in cmux.workspace_surfaces(ws)}
+    name = cmux.unique_sidecar_name(Path.cwd().name, existing, explicit)
+
+    res = cmux.run(cmux.sidecar_argv(url, ws_ref=ws))
+    surface = cmux.parse_new_surface_ref(res.stdout)
+    if surface:
+        cmux.run(cmux.rename_surface_tab_argv(ws, surface, name))
     return 0
 
 
