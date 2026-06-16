@@ -4,8 +4,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import cc, cmux, completions, day, projects, settings, solo, spread, status, tmuxify, yard
-from .label import glyphed_title, strip_glyph
+from . import cc, cmux, completions, day, help as poshelp, projects, settings, solo, spread, status, tmuxify, yard
+from .output import resolve_mode
+from .label import GLYPHS, glyphed_title, strip_glyph
 from .manifest import (
     expand_focus_members,
     focus_order,
@@ -52,6 +53,8 @@ USAGE = """pos — focus-aligned terminal cockpit
                           NEVER closes: the tab you launched from, running jobs
                           (live tmux + cmux sidebar badges), or scratch.
                           --force ignores stale running badges when you've verified live.
+  pos help [agents]       this usage; `--json` prints the machine-readable command
+                          table; `pos help agents` prints the agent guide.
 """
 
 PROTECTED = {"scratch"}  # never auto-closed by `pos load`
@@ -171,7 +174,7 @@ def _manifest_path() -> Path:
 
 def _cmd_status(m, rest) -> int:
     rows = status.build_status(m)
-    if "--json" in rest:
+    if resolve_mode(rest) == "json":
         print(json.dumps(rows, ensure_ascii=False))
     else:
         for r in rows:
@@ -274,7 +277,8 @@ def _cmd_new(m, rest) -> int:
         cwd = str(Path(rest[1]).expanduser())
     elif name in m.projects or name in m.focuses:
         cwd = _cwd_for(m, name)
-        glyph = _label_for(m, name)[:1] if _label_for(m, name)[:1] in "◆◇+∴⌂" else ""
+        mark = _label_for(m, name)[:1]
+        glyph = mark if mark in GLYPHS else ""
     else:
         cwd = str(Path("~").expanduser())
     ref = projects.create(name, cwd, glyph)
@@ -470,15 +474,27 @@ def main(argv=None) -> int:
     m = load_manifest(_manifest_path())
 
     if not argv:
-        for f in focus_order(m):
-            fo = m.focuses[f]
-            print(f"{fo.emoji} {f}  [{fo.tier}]")
+        if resolve_mode([]) == "json":
+            print(json.dumps(
+                [{"name": f, "emoji": m.focuses[f].emoji, "tier": m.focuses[f].tier}
+                 for f in focus_order(m)],
+                ensure_ascii=False,
+            ))
+        else:
+            for f in focus_order(m):
+                fo = m.focuses[f]
+                print(f"{fo.emoji} {f}  [{fo.tier}]")
         return 0
 
     cmd, rest = argv[0], argv[1:]
 
     if cmd in ("-h", "--help", "help"):
-        print(USAGE)
+        if rest and rest[0] == "agents":
+            print(poshelp.agents_doc())
+        elif resolve_mode(rest) == "json":
+            print(json.dumps(poshelp.render_json(), ensure_ascii=False))
+        else:
+            print(USAGE)
         return 0
     if cmd == "status":
         return _cmd_status(m, rest)
