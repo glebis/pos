@@ -33,10 +33,78 @@ def open_workspace_argv(title: str, cwd: str) -> list:
     return [CMUX_BIN, "new-workspace", "--command", command]
 
 
-def sidecar_argv(url) -> list:
+def sidecar_argv(url, ws_ref: str | None = None) -> list:
+    """Argv to add a sidecar. Targets ws_ref explicitly when known — without it
+    cmux relies on the caller's pane context, which is absent when `pos` runs
+    outside a cmux terminal (a routine, an agent), and the command fails."""
     if url:
-        return [CMUX_BIN, "new-surface", "--type", "browser", "--url", url]
-    return [CMUX_BIN, "new-pane", "--type", "terminal"]
+        argv = [CMUX_BIN, "new-surface", "--type", "browser", "--url", url]
+    else:
+        argv = [CMUX_BIN, "new-pane", "--type", "terminal"]
+    if ws_ref:
+        argv += ["--workspace", ws_ref]
+    return argv
+
+
+def parse_new_surface_ref(stdout: str) -> str | None:
+    """Extract the surface ref from a create reply ('OK surface:N pane:N ws:N')."""
+    for tok in (stdout or "").split():
+        if tok.startswith("surface:"):
+            return tok
+    return None
+
+
+def unique_sidecar_name(folder: str, existing: list, explicit: str | None = None) -> str:
+    """Pick a tab name for a new sidecar.
+
+    An explicit name is honored verbatim. Otherwise the current folder name is
+    the base; if a tab already carries that name, the first free `name N`
+    (N starting at 2) is used so repeated sidecars don't collide.
+    """
+    if explicit:
+        return explicit
+    base = folder or "sidecar"
+    if base not in existing:
+        return base
+    n = 2
+    while f"{base} {n}" in existing:
+        n += 1
+    return f"{base} {n}"
+
+
+def parse_surfaces(stdout: str) -> list:
+    """Extract [{ref, title}] from a `list-pane-surfaces` reply (empty on junk)."""
+    import json
+
+    try:
+        data = json.loads(stdout or "{}")
+    except json.JSONDecodeError:
+        return []
+    return [
+        {"ref": s["ref"], "title": s.get("title", "")}
+        for s in data.get("surfaces", [])
+        if s.get("ref")
+    ]
+
+
+def current_workspace_ref() -> str | None:
+    """Ref of the selected workspace in the current window (None if unreachable)."""
+    win = window_workspaces()
+    cur = next((w for w in win["workspaces"] if w.get("selected")), None)
+    return cur.get("ref") if cur else None
+
+
+def workspace_surfaces(ws_ref: str) -> list:
+    """[{ref, title}] of every tab/surface in a workspace (best-effort)."""
+    if not ws_ref:
+        return []
+    out = run([CMUX_BIN, "--json", "list-pane-surfaces", "--workspace", ws_ref])
+    return parse_surfaces(out.stdout)
+
+
+def rename_surface_tab_argv(ws_ref: str, surface_ref: str, title: str) -> list:
+    """Rename a specific surface's tab within a workspace."""
+    return [CMUX_BIN, "rename-tab", "--workspace", ws_ref, "--surface", surface_ref, title]
 
 
 def rename_workspace_argv(title: str, ref: str | None = None) -> list:
