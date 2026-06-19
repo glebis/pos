@@ -7,7 +7,7 @@ from pos.cmux import CMUX_BIN
 def test_encode_project_dir_slashes_to_dashes():
     # Claude names its session dir by replacing every '/' with '-'
     # (a leading '/' therefore yields a leading '-').
-    assert cc.encode_project_dir("/Users/glebkalinin/Brains/brain") == "-Users-glebkalinin-Brains-brain"
+    assert cc.encode_project_dir("/Users/test/Brains/brain") == "-Users-test-Brains-brain"
 
 
 def test_has_prior_session_true_when_jsonl_present(tmp_path):

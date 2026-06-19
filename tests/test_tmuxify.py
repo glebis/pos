@@ -9,7 +9,7 @@ def test_tmux_session_extraction():
 
 def test_classify():
     assert T.classify("tmux attach -t life") == "tmux"
-    assert T.classify("glebkalinin@Mac:~/Brains/brain") == "shell"
+    assert T.classify("user@host:~/Brains/brain") == "shell"
     assert T.classify("…/pos/src/pos") == "shell"
     assert T.classify("/Users/x/proj") == "shell"
     assert T.classify("cenno app") == "other"
@@ -29,7 +29,7 @@ def test_audit_workspace_backed():
 
 
 def test_audit_workspace_shell():
-    a = T.audit_workspace("◆ business", [{"ref": "s1", "title": "glebkalinin@Mac:~/Brains/brain", "selected": True}])
+    a = T.audit_workspace("◆ business", [{"ref": "s1", "title": "user@host:~/Brains/brain", "selected": True}])
     assert not a["backed"] and a["kind"] == "shell"
 
 

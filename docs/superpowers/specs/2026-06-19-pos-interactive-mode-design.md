@@ -1,7 +1,7 @@
 # pos interactive mode — design
 
 **Date:** 2026-06-19
-**Spec source:** `~/jtbd/pos-interactive-mode/jtbd.json`
+**Spec source:** JTBD brief (kept outside the repo)
 **Status:** proposed
 
 ## Goal

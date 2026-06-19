@@ -4,7 +4,7 @@
 
 - **Repo:** <https://github.com/glebis/pos>
 - **Runtime:** Python ≥ 3.12, **stdlib-only** (uv-managed). macOS.
-- **Status:** 146 tests green · v0.1.0
+- **Status:** 193 tests green · v0.1.0
 
 > Built for a personal setup, but the patterns (cmux socket scripting, tmux-backed durability, resume-aware Claude launch) are reusable.
 
@@ -13,6 +13,7 @@
 - [Concept](#concept)
 - [Install](#install)
 - [Commands](#commands)
+  - [Interactive mode](#interactive-mode)
   - [Focus & projects](#focus--projects)
   - [Claude Code, with resume](#claude-code-with-resume)
   - [Window layout](#window-layout)
@@ -48,7 +49,17 @@ The manifest lives at `~/.config/personal-os/focus.toml` (override with `POS_MAN
 
 ## Commands
 
-Run `pos --help` for the full list.
+Run `pos --help` for the full list. Every command is also driveable from the [interactive TUI](#interactive-mode).
+
+### Interactive mode
+
+| Command | What it does |
+|---|---|
+| `pos i` (alias `pos interactive`) | full-screen `curses` cockpit: browse focuses → projects/sessions with the arrow keys, act on a selection with one keypress, and reach any command via a `:` palette |
+
+Navigate with `↑↓`/`j k`, switch panes with `→`/`Tab`, quit with `q`. Keypress actions on the selection: `Enter` open · `l` load (confirms) · `c` Claude Code · `n` new workspace · `r` remove (confirms). Press `:` (or `p`) for a fuzzy command palette over the whole command table — anything without a hotkey runs from there. The project pane shows each repo's branch, a `*` dirty marker, and a `●` when it has a live session.
+
+It's TTY-only by design: piped or agent invocation exits with a message, so the JSON output of the other commands is never disturbed. Destructive actions (`load`, `rm`) confirm before running, and each action shells out through the same code path as the CLI, so output is identical.
 
 ### Focus & projects
 
@@ -78,7 +89,7 @@ Run `pos --help` for the full list.
 | `pos spread` | fan every workspace into its own dedicated cmux window |
 | `pos tile` | spread, then grid the windows across the screen via [AeroSpace](#screen-tiling-with-aerospace) |
 | `pos gather` | inverse of spread/tile — merge all windows back into one |
-| `pos solo` | UltraFocus: hide every workspace but the current one (toggle) |
+| `pos solo [name]` | UltraFocus: hide every workspace but one — the current one, or `[name]` if given (toggle) |
 | `pos sort` | reorder the window so **pinned** workspaces sit at the top |
 
 ### Workspace CRUD
@@ -135,7 +146,7 @@ Candidates are dynamic (live focuses, projects, open workspaces, settings) via a
 ## Development
 
 ```sh
-uv run pytest -q        # 146 tests
+uv run pytest -q        # 193 tests
 ```
 
 Pure logic (argv builders, planners, parsers) is separated from side-effecting cmux calls so most of the surface is unit-tested without a live socket.
