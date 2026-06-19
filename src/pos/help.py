@@ -46,9 +46,9 @@ COMMANDS = [
     },
     {
         "name": "solo",
-        "synopsis": "UltraFocus: hide every workspace but the current one (toggle; --off forces restore).",
-        "args": "[--off]",
-        "example": "pos solo",
+        "synopsis": "UltraFocus: hide every workspace but one — the current one, or [name] if given (toggle; --off forces restore).",
+        "args": "[name] [--off]",
+        "example": "pos solo feature-factory",
     },
     {
         "name": "tmuxify",

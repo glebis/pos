@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 
 from . import cmux
+from .label import strip_glyph
 
 
 def state_path() -> Path:
@@ -27,8 +28,10 @@ def is_active() -> bool:
 
 
 # ── pure ──────────────────────────────────────────────────────────────────
-def park_targets(workspaces: list) -> list:
-    """UUIDs of every workspace except the selected one (what UltraFocus hides)."""
+def park_targets(workspaces: list, keep_id: str | None = None) -> list:
+    """UUIDs of every workspace to hide. Keep `keep_id` if given, else the selected one."""
+    if keep_id is not None:
+        return [w["id"] for w in workspaces if w["id"] != keep_id]
     return [w["id"] for w in workspaces if not w.get("selected")]
 
 
@@ -39,6 +42,15 @@ def selected_id(workspaces: list) -> str | None:
     return None
 
 
+def find_by_name(workspaces: list, name: str) -> dict | None:
+    """Workspace whose glyph-stripped title equals `name` (case-insensitive), else None."""
+    target = strip_glyph(name).strip().casefold()
+    for w in workspaces:
+        if strip_glyph(w.get("title", "")).strip().casefold() == target:
+            return w
+    return None
+
+
 # ── side effects ───────────────────────────────────────────────────────────
 def _save(state: dict) -> None:
     p = state_path()
@@ -46,12 +58,22 @@ def _save(state: dict) -> None:
     p.write_text(json.dumps(state))
 
 
-def engage() -> int:
+def engage(name: str | None = None) -> int:
     win = cmux.window_workspaces()
     workspaces = win["workspaces"]
     home = win["window_id"]
-    targets = park_targets(workspaces)
-    focused = selected_id(workspaces)
+    if name:
+        keep = find_by_name(workspaces, name)
+        if not keep:
+            avail = ", ".join(sorted(
+                strip_glyph(w.get("title", "")).strip() for w in workspaces
+            )) or "(none)"
+            print(f"UltraFocus: no workspace named {name!r} in this window. Available: {avail}")
+            return 1
+        focused = keep["id"]
+    else:
+        focused = selected_id(workspaces)
+    targets = park_targets(workspaces, keep_id=focused)
     if not targets:
         print("UltraFocus: only one workspace here — nothing to hide.")
         return 0
@@ -103,5 +125,5 @@ def restore() -> int:
     return 0
 
 
-def toggle() -> int:
-    return restore() if is_active() else engage()
+def toggle(name: str | None = None) -> int:
+    return restore() if is_active() else engage(name)
