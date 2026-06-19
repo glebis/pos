@@ -24,6 +24,7 @@ USAGE = """pos — focus-aligned terminal cockpit
   pos <focus>             load a focus: open+pin its projects, close the rest
                           (dry-run unless --apply; same engine as `pos load`)
   pos p [name]            project index: list, or open project <name>
+  pos i                   interactive TUI: browse focuses/projects, act by keypress
   pos cc <focus>          open a Claude Code workspace for <focus>; resumes its
                           conversation after a cmux crash / reboot (pos-cc wrapper)
   pos new <name> [path]   open a tmux-backed workspace (known project → its path)
@@ -490,6 +491,9 @@ def _cmd_day(m, rest) -> int:
 
 
 def dispatch(m, cmd, rest) -> int:
+    if cmd in ("i", "interactive"):
+        from . import tui
+        return tui.run(m)
     if cmd in ("-h", "--help", "help"):
         if rest and rest[0] == "agents":
             print(poshelp.agents_doc())

@@ -15,6 +15,12 @@ COMMANDS = [
         "example": "pos p cenno",
     },
     {
+        "name": "i",
+        "synopsis": "Interactive TUI: browse focuses/projects/sessions and act with one keypress.",
+        "args": "",
+        "example": "pos i",
+    },
+    {
         "name": "cc",
         "synopsis": "Open a Claude Code workspace for <focus>; resumes its conversation after a cmux crash/reboot.",
         "args": "<focus>",

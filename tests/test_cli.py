@@ -6,6 +6,21 @@ from pos import cli
 FIX = str(Path(__file__).parent / "fixtures" / "focus.toml")
 
 
+def test_i_command_refuses_without_a_tty(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    rc = cli.main(["i"])
+    assert rc == 1
+    assert "interactive terminal" in capsys.readouterr().err
+
+
+def test_interactive_alias_refuses_without_a_tty(capsys, monkeypatch):
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    assert cli.main(["interactive"]) == 1
+    capsys.readouterr()
+
+
 def test_dispatch_runs_a_command_directly(capsys, monkeypatch):
     from pos.manifest import load_manifest
     monkeypatch.setenv("POS_MANIFEST", FIX)
