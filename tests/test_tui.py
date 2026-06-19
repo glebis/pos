@@ -46,6 +46,14 @@ def test_resolve_action_project_pane():
     assert ld.cmd == "load" and ld.confirm is True
 
 
+def test_run_refuses_without_a_tty(capsys, monkeypatch):
+    # capsys already makes stdout a non-TTY; force stdin too for determinism.
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    rc = tui.run(_m())
+    assert rc == 1
+    assert "interactive terminal" in capsys.readouterr().err
+
+
 def test_filter_palette():
     items = tui.palette_items()
     assert any(c["name"] == "status" for c in items)
