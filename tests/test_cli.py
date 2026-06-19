@@ -6,6 +6,24 @@ from pos import cli
 FIX = str(Path(__file__).parent / "fixtures" / "focus.toml")
 
 
+def test_dispatch_runs_a_command_directly(capsys, monkeypatch):
+    from pos.manifest import load_manifest
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    m = load_manifest(Path(FIX))
+    monkeypatch.setattr("pos.status.git_state", lambda p: {"branch": "main", "dirty": False})
+    rc = cli.dispatch(m, "status", ["--json"])
+    data = json.loads(capsys.readouterr().out)
+    assert rc == 0 and any(r["project"] == "cenno" for r in data)
+
+
+def test_dispatch_unknown_command_returns_1(capsys, monkeypatch):
+    from pos.manifest import load_manifest
+    monkeypatch.setenv("POS_MANIFEST", FIX)
+    m = load_manifest(Path(FIX))
+    rc = cli.dispatch(m, "frobnicate", [])
+    assert rc == 1
+
+
 def test_status_json(capsys, monkeypatch):
     monkeypatch.setenv("POS_MANIFEST", FIX)
     monkeypatch.setattr("pos.status.git_state", lambda p: {"branch": "main", "dirty": False})

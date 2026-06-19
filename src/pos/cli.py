@@ -489,25 +489,7 @@ def _cmd_day(m, rest) -> int:
     return 0
 
 
-def main(argv=None) -> int:
-    argv = sys.argv[1:] if argv is None else list(argv)
-    m = load_manifest(_manifest_path())
-
-    if not argv:
-        if resolve_mode([]) == "json":
-            print(json.dumps(
-                [{"name": f, "emoji": m.focuses[f].emoji, "tier": m.focuses[f].tier}
-                 for f in focus_order(m)],
-                ensure_ascii=False,
-            ))
-        else:
-            for f in focus_order(m):
-                fo = m.focuses[f]
-                print(f"{fo.emoji} {f}  [{fo.tier}]")
-        return 0
-
-    cmd, rest = argv[0], argv[1:]
-
+def dispatch(m, cmd, rest) -> int:
     if cmd in ("-h", "--help", "help"):
         if rest and rest[0] == "agents":
             print(poshelp.agents_doc())
@@ -566,3 +548,24 @@ def main(argv=None) -> int:
 
     print(f"unknown command: {cmd}\n\n{USAGE}", file=sys.stderr)
     return 1
+
+
+def main(argv=None) -> int:
+    argv = sys.argv[1:] if argv is None else list(argv)
+    m = load_manifest(_manifest_path())
+
+    if not argv:
+        if resolve_mode([]) == "json":
+            print(json.dumps(
+                [{"name": f, "emoji": m.focuses[f].emoji, "tier": m.focuses[f].tier}
+                 for f in focus_order(m)],
+                ensure_ascii=False,
+            ))
+        else:
+            for f in focus_order(m):
+                fo = m.focuses[f]
+                print(f"{fo.emoji} {f}  [{fo.tier}]")
+        return 0
+
+    cmd, rest = argv[0], argv[1:]
+    return dispatch(m, cmd, rest)

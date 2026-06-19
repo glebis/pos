@@ -16,13 +16,13 @@ def test_registry_covers_core_commands():
 
 
 def test_every_registry_command_is_dispatchable():
-    # Guard against documenting a command `main` doesn't handle. Every registry
-    # name must appear as a dispatch arm in cli.main's source.
+    # Guard against documenting a command `dispatch` doesn't handle. Every
+    # registry name must appear as a dispatch arm in cli.dispatch's source.
     import inspect
 
-    src = inspect.getsource(cli.main)
+    src = inspect.getsource(cli.dispatch)
     for c in poshelp.render_json():
-        assert f'"{c["name"]}"' in src, f"{c['name']} not dispatched in main()"
+        assert f'"{c["name"]}"' in src, f"{c['name']} not dispatched in dispatch()"
 
 
 def test_every_registry_command_appears_in_human_usage():
