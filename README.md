@@ -149,15 +149,25 @@ Candidates are dynamic (live focuses, projects, open workspaces, settings) via a
 
 A [Raycast](https://raycast.com) front-end lives in [`raycast/`](raycast/). It's a thin client over the same JSON contract the CLI exposes (`pos` emits JSON whenever stdout isn't a TTY), so it just shells out and renders. Three commands:
 
-- **pos: Focuses** — browse focus areas; drill into a focus's projects.
-- **pos: Project Status** — every project grouped by focus, with git branch + dirty marker; open, launch Claude Code, load the focus, or copy the path.
-- **pos: Run Command** — fuzzy-pick any `pos` command and run it; commands taking arguments prompt for them.
+- **Pos: Focuses** — browse focus areas; drill into a focus's projects.
+- **Pos: Project Status** — every project grouped by focus, with git branch + dirty marker; open, launch Claude Code, load the focus, or copy the path.
+- **Pos: Run Command** — fuzzy-pick any `pos` command and run it; commands taking arguments prompt for them.
+
+It needs the `pos` CLI on your login shell's PATH (auto-detected via `zsh -lc 'command -v pos'`, overridable in the extension's **pos binary** preference) and Node ≥ 20.
+
+### Install locally (before Store approval)
+
+The extension is [pending review for the Raycast Store](https://github.com/raycast/extensions/pull/28944). Until it's accepted you can run it locally — Raycast loads it as a development extension:
 
 ```sh
-cd raycast && npm install && npm run dev   # load into Raycast for development
+git clone https://github.com/glebis/pos && cd pos/raycast
+npm install
+npm run dev          # builds, imports into Raycast, and watches for changes
 ```
 
-It needs the `pos` CLI on your login shell's PATH (auto-detected via `zsh -lc 'command -v pos'`, overridable in the extension's **pos binary** preference). See [`raycast/README.md`](raycast/README.md) for details.
+Open Raycast and search "pos" — the three commands appear (tagged *Development*). Keep that `npm run dev` running while you use it; if Raycast asks for the dev server again after a restart, just re-run it. To stop, press `Ctrl-C` in that terminal.
+
+Once the Store PR is merged, install it the normal way from the Raycast Store and you won't need the dev server. See [`raycast/README.md`](raycast/README.md) for development details.
 
 ## Development
 
