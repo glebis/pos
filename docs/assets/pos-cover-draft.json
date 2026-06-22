@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-06-17T12:03:05.484867",
+  "prompt": "A clean, modern GitHub cover banner for a developer tool called \"pos\", in a soft, minimal \"operating system\" UI style. Warm off-white cream background throughout. Centered at top: an elegant serif wordmark \"pos\" in deep near-black, with a small refined subtitle below in muted gray small-caps reading \"Focus-aligned terminal cockpit\". Below the title, a neat row of three rounded-rectangle cards with soft drop shadows on the cream ground, each card with a thin colored top label and a small minimal line icon: card 1 labeled \"cmux\" in calm blue with a window/grid icon and a few faint horizontal placeholder lines; card 2 labeled \"tmux\" in muted terra-cotta red with a stacked-panes icon; card 3 labeled \"focus\" in muted green with a target/concentric-circles icon. Subtle, restrained, lots of negative space, refined typography, gentle shadows, no clutter, no real terminal screenshots. Flat editorial illustration, calm and premium. No extra text besides the labels named.",
+  "preset": null,
+  "platform": "blog",
+  "thinking": "off",
+  "quality": "low",
+  "provider": "openai",
+  "n": 1,
+  "seed": null,
+  "output": "docs/assets/pos-cover-draft.png",
+  "project": null,
+  "estimated_cost": 0.006
+}

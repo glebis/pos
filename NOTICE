@@ -1,7 +1,9 @@
 pos
 Copyright 2026-present Gleb Kalinin
 
-pos is licensed under the Apache License, Version 2.0.
+pos is licensed under the Apache License, Version 2.0, except the Raycast
+extension under raycast/, which is licensed under the MIT License (as the
+Raycast Store requires). See raycast/LICENSE.
 
 Implementation was assisted by AI coding tools (Claude Code, Anthropic; Codex,
 OpenAI) under human architectural, product, and code-review direction. See

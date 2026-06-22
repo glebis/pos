@@ -22,9 +22,11 @@
 - [Screen tiling with AeroSpace](#screen-tiling-with-aerospace)
 - [Shell completion](#shell-completion)
 - [Settings](#settings)
+- [Raycast extension](#raycast-extension)
 - [Development](#development)
 - [Related](#related)
 - [License](#license)
+- [More from Gleb](#more-from-gleb)
 
 ## Concept
 
@@ -132,6 +134,20 @@ Candidates are dynamic (live focuses, projects, open workspaces, settings) via a
 | `window_manager` | `aerospace` | `aerospace`, `none` |
 | `tile_layout` | `tiles` | `tiles`, `accordion`, `horizontal`, `vertical` |
 
+## Raycast extension
+
+A [Raycast](https://raycast.com) front-end lives in [`raycast/`](raycast/). It's a thin client over the same JSON contract the CLI exposes (`pos` emits JSON whenever stdout isn't a TTY), so it just shells out and renders. Three commands:
+
+- **pos: Focuses** — browse focus areas; drill into a focus's projects.
+- **pos: Project Status** — every project grouped by focus, with git branch + dirty marker; open, launch Claude Code, load the focus, or copy the path.
+- **pos: Run Command** — fuzzy-pick any `pos` command and run it; commands taking arguments prompt for them.
+
+```sh
+cd raycast && npm install && npm run dev   # load into Raycast for development
+```
+
+It needs the `pos` CLI on your login shell's PATH (auto-detected via `zsh -lc 'command -v pos'`, overridable in the extension's **pos binary** preference). See [`raycast/README.md`](raycast/README.md) for details.
+
 ## Development
 
 ```sh
@@ -139,6 +155,8 @@ uv run pytest -q        # 146 tests
 ```
 
 Pure logic (argv builders, planners, parsers) is separated from side-effecting cmux calls so most of the surface is unit-tested without a live socket.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose changes, [SECURITY.md](SECURITY.md) to report vulnerabilities, and [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Related
 
@@ -149,4 +167,10 @@ Pure logic (argv builders, planners, parsers) is separated from side-effecting c
 
 ## License
 
-[Apache-2.0](LICENSE) © 2026 Gleb Kalinin. See [AUTHORSHIP.md](AUTHORSHIP.md) for the authorship record and [NOTICE](NOTICE) for attribution.
+[Apache-2.0](LICENSE) © 2026 Gleb Kalinin. See [AUTHORSHIP.md](AUTHORSHIP.md) for the authorship record and [NOTICE](NOTICE) for attribution. The Raycast extension under [`raycast/`](raycast/) is MIT-licensed, as the Raycast Store requires.
+
+## More from Gleb
+
+I build focus tools, AI workflows, and write about creativity & tech.
+
+- [claude-skills](https://github.com/glebis/claude-skills) — a library of Claude Code skills
