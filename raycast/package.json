@@ -1,7 +1,7 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "pos",
-  "title": "pos — focus cockpit",
+  "title": "Pos — Focus Cockpit",
   "description": "Drive the pos terminal cockpit from Raycast: browse focuses, projects and git status, and run any pos command.",
   "icon": "icon.png",
   "author": "glebkalinin",
@@ -10,21 +10,21 @@
   "commands": [
     {
       "name": "focuses",
-      "title": "pos: Focuses",
+      "title": "Pos: Focuses",
       "subtitle": "pos",
       "description": "Browse focus areas; drill into a focus's projects.",
       "mode": "view"
     },
     {
       "name": "status",
-      "title": "pos: Project Status",
+      "title": "Pos: Project Status",
       "subtitle": "pos",
       "description": "Projects across focuses with git branch/dirty status; open, load, or launch Claude Code.",
       "mode": "view"
     },
     {
       "name": "commands",
-      "title": "pos: Run Command",
+      "title": "Pos: Run Command",
       "subtitle": "pos",
       "description": "Fuzzy-pick any pos command and run it.",
       "mode": "view"

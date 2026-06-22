@@ -19,7 +19,7 @@ function ArgsForm({ cmd }: { cmd: PosCommand }) {
       actions={
         <ActionPanel>
           <Action.SubmitForm
-            title={`Run pos ${cmd.name}`}
+            title="Run Command"
             icon={Icon.Play}
             onSubmit={async (values: { args: string }) => {
               await runRegistryCommand(cmd, values.args ?? "");
