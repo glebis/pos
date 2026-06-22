@@ -14,7 +14,7 @@ def test_status_entry_needs_input():
 
 
 def test_idle_workspace_not_running():
-    assert is_running({"title": "glebkalinin@Mac:~/ai_projects/cull"}) is False
+    assert is_running({"title": "user@host:~/ai_projects/cull"}) is False
 
 
 def test_ws_title_prefers_custom():
@@ -29,7 +29,7 @@ FIX = Path(__file__).parent / "fixtures" / "focus.toml"
 
 
 def test_paths_from_title_extracts_path():
-    assert paths_from_title("glebkalinin@Mac:~/ai_projects/cenno") == ["~/ai_projects/cenno"]
+    assert paths_from_title("user@host:~/ai_projects/cenno") == ["~/ai_projects/cenno"]
     assert paths_from_title("cenno app") == []
 
 

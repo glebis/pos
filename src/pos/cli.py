@@ -24,14 +24,15 @@ USAGE = """pos — focus-aligned terminal cockpit
   pos <focus>             load a focus: open+pin its projects, close the rest
                           (dry-run unless --apply; same engine as `pos load`)
   pos p [name]            project index: list, or open project <name>
+  pos i                   interactive TUI: browse focuses/projects, act by keypress
   pos cc <focus>          open a Claude Code workspace for <focus>; resumes its
                           conversation after a cmux crash / reboot (pos-cc wrapper)
   pos new <name> [path]   open a tmux-backed workspace (known project → its path)
   pos rename <old> <new>  rename a live workspace
   pos rm <name> [--force] close a live workspace (--force if not tmux-backed)
   pos where               print the current workspace + its tmux session
-  pos solo                UltraFocus: hide every workspace but the current one.
-                          Toggle (run again to restore); --off forces restore.
+  pos solo [name]         UltraFocus: hide every workspace but one (the current
+                          one, or [name] if given). Toggle; --off forces restore.
   pos tmuxify [--apply]   back workspaces with tmux so they survive close/restore.
                           Dry-run audit unless --apply; converts only idle shells.
   pos spread              fan every workspace out into its own dedicated window
@@ -366,12 +367,17 @@ def _cmd_tmuxify(m, rest) -> int:
 
 
 def _cmd_solo(m, rest) -> int:
-    """pos solo — UltraFocus: hide every workspace but the current one (toggle)."""
+    """pos solo [name] — UltraFocus: hide every workspace but one (toggle).
+
+    With no name, keeps the currently-selected workspace. With a name, keeps that
+    workspace instead — handy when driving pos from another workspace's shell.
+    """
+    name = next((a for a in rest if not a.startswith("-")), None)
     if "--off" in rest:
         return solo.restore()
     if "--on" in rest:
-        return solo.engage() if not solo.is_active() else 0
-    return solo.toggle()
+        return solo.engage(name) if not solo.is_active() else 0
+    return solo.toggle(name)
 
 
 def _cmd_cc(m, rest) -> int:
@@ -484,25 +490,10 @@ def _cmd_day(m, rest) -> int:
     return 0
 
 
-def main(argv=None) -> int:
-    argv = sys.argv[1:] if argv is None else list(argv)
-    m = load_manifest(_manifest_path())
-
-    if not argv:
-        if resolve_mode([]) == "json":
-            print(json.dumps(
-                [{"name": f, "emoji": m.focuses[f].emoji, "tier": m.focuses[f].tier}
-                 for f in focus_order(m)],
-                ensure_ascii=False,
-            ))
-        else:
-            for f in focus_order(m):
-                fo = m.focuses[f]
-                print(f"{fo.emoji} {f}  [{fo.tier}]")
-        return 0
-
-    cmd, rest = argv[0], argv[1:]
-
+def dispatch(m, cmd, rest) -> int:
+    if cmd in ("i", "interactive"):
+        from . import tui
+        return tui.run(m)
     if cmd in ("-h", "--help", "help"):
         if rest and rest[0] == "agents":
             print(poshelp.agents_doc())
@@ -561,3 +552,24 @@ def main(argv=None) -> int:
 
     print(f"unknown command: {cmd}\n\n{USAGE}", file=sys.stderr)
     return 1
+
+
+def main(argv=None) -> int:
+    argv = sys.argv[1:] if argv is None else list(argv)
+    m = load_manifest(_manifest_path())
+
+    if not argv:
+        if resolve_mode([]) == "json":
+            print(json.dumps(
+                [{"name": f, "emoji": m.focuses[f].emoji, "tier": m.focuses[f].tier}
+                 for f in focus_order(m)],
+                ensure_ascii=False,
+            ))
+        else:
+            for f in focus_order(m):
+                fo = m.focuses[f]
+                print(f"{fo.emoji} {f}  [{fo.tier}]")
+        return 0
+
+    cmd, rest = argv[0], argv[1:]
+    return dispatch(m, cmd, rest)

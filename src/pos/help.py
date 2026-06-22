@@ -15,6 +15,12 @@ COMMANDS = [
         "example": "pos p cenno",
     },
     {
+        "name": "i",
+        "synopsis": "Interactive TUI: browse focuses/projects/sessions and act with one keypress.",
+        "args": "",
+        "example": "pos i",
+    },
+    {
         "name": "cc",
         "synopsis": "Open a Claude Code workspace for <focus>; resumes its conversation after a cmux crash/reboot.",
         "args": "<focus>",
@@ -46,9 +52,9 @@ COMMANDS = [
     },
     {
         "name": "solo",
-        "synopsis": "UltraFocus: hide every workspace but the current one (toggle; --off forces restore).",
-        "args": "[--off]",
-        "example": "pos solo",
+        "synopsis": "UltraFocus: hide every workspace but one — the current one, or [name] if given (toggle; --off forces restore).",
+        "args": "[name] [--off]",
+        "example": "pos solo feature-factory",
     },
     {
         "name": "tmuxify",
