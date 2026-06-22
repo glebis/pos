@@ -6,6 +6,7 @@
   "icon": "icon.png",
   "author": "glebkalinin",
   "license": "MIT",
+  "platforms": ["macOS"],
   "categories": ["Developer Tools", "Productivity"],
   "commands": [
     {
