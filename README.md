@@ -1,6 +1,6 @@
 # pos — focus-aligned terminal cockpit
 
-`pos` is a thin CLI that drives **cmux** (`cmuxterm.app` — an interactive terminal multiplexer / window manager, built on [ghostty](https://github.com/ghostty-org/ghostty)) on top of [**tmux**](https://github.com/tmux/tmux/wiki), so your terminal workspaces mirror what you're actually focused on. It turns a pile of terminal tabs into a focus-organized cockpit: open projects by focus area, fan them across the screen, hide everything but the one thing, and keep [Claude Code](https://claude.com/claude-code) sessions alive across crashes and reboots.
+`pos` (point of service) is a thin CLI that drives **cmux** (`cmuxterm.app` — an interactive terminal multiplexer / window manager, built on [ghostty](https://github.com/ghostty-org/ghostty)) on top of [**tmux**](https://github.com/tmux/tmux/wiki), so your terminal workspaces mirror what you're actually focused on. It turns a pile of terminal tabs into a focus-organized cockpit: open projects by focus area, fan them across the screen, hide everything but the one thing, and keep [Claude Code](https://claude.com/claude-code) sessions alive across crashes and reboots.
 
 - **Repo:** <https://github.com/glebis/pos>
 - **Runtime:** Python ≥ 3.12, **stdlib-only** (uv-managed). macOS.
